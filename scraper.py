@@ -47,3 +47,25 @@ class Scraper:
 			'soup': soup,
 			'html': response.text
 		}
+	
+	def extractDownloadLinks(self, htmlContent):
+		soup = BeautifulSoup(htmlContent, 'html.parser')
+
+		flacLinks = []
+
+		#look for download links in all formats
+		for link in soup.find_all('a'):
+			href = link.get('href', '')
+			text = link.get_text(strip=True).lower()
+
+			#grab flac links
+			if 'flac' in text.lower() or href.endswith('.flac'):
+				if href.startswith('http'):
+					flacLinks.append({
+						'uri': href,
+						'filename': href.split('/')[-1]
+					})
+		
+		return flacLinks
+	
+	
