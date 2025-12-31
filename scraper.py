@@ -23,3 +23,27 @@ class Scraper:
 	# removes the characters frome the file name that are not allowed
 	def cleanFileName(self, filename):
 		return re.sub(r'[<>:"/\\|?*]', '', filename)
+
+	def getAlbumInfo(self):
+		try:
+			response = self.session.get(self.albumURI, timeout = 10)
+			response.raiseForStatus()
+		except requests.RequestException as exception:
+			print(f"Error fetching album: {exception}")
+			return None
+		
+		soup = BeautifulSoup(response.content, 'html.parser')
+
+		#Extract album title
+		titleTag = soup.find('h2')
+		if titleTag:
+			albumTitle = titleTag.get_text(strip=True)
+		else:
+			albumTitle = "Unknown Album"
+		albumTitle = self.cleanFileName(albumTitle)
+
+		return {
+			'title': albumTitle,
+			'soup': soup,
+			'html': response.text
+		}
