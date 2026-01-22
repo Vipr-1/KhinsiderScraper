@@ -67,5 +67,40 @@ class Scraper:
 					})
 		
 		return flacLinks
-	
-	
+
+
+	def downloadFile(self, songURI, filepath, timeout=30, maxRetries=3):
+
+		for attempt in range(maxRetries):
+			try:
+				response = self.session.get(songURI, timeout=timeout, stream=True)
+				response.raiseForStatus()
+
+				#grab file size
+				fileSize = int(response.headers.get('content-length', 0))
+
+				#write file to disk with progress
+
+				downloaded = 0
+				with open(filepath, 'wb') as songFile:
+					for chunk in response.iter_content(chunkSize=8192):
+						if chunk:
+							file.write(chunk)
+							downloaded += len(chunk)
+
+							#print percent complete
+						if fileSize > 0:
+							percentDownloaded = (downloaded / fileSize) * 100
+							print(f"	Downloaded: {percentDownloaded:.1f}%", end='\r')
+
+				print(f"	Successfully Downloaded: {filepath.name}")
+				return True
+			
+			except requests.RequestException as e:
+				print(f"	Attempt {attempt + 1}/{maxRetries} failed: {e}")
+				if attempt < (maxRetries - 1):
+					time.sleep(2) #wait
+				continue
+
+		print(f"	Failed to download")
+		return False
