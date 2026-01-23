@@ -104,3 +104,57 @@ class Scraper:
 
 		print(f"	Failed to download")
 		return False
+	
+	def scrapeAndDownload(self):
+		print(f"Scraping: {self.albumURI}")
+
+			#get album info
+		albumInfo = self.getAlbumInfo()
+		if not albumInfo:
+			print("Failed to retrieve album information")
+			return False
+
+		print(f"Album: {albumInfo['title']}")
+
+			#get the song links
+		flacLinks = self.extractDownloadLinks(albumInfo['html'])
+		if not flacLinks:
+			print("No FLAC Downloads were found")
+			return False
+		
+		print(f"Found {len(flacLinks)} FLAC files")
+
+			#make the album directory
+		albumDIR = self.outputDIR / albumInfo['title']
+		try:
+			albumDIR.mkdir(parents=True, exist_ok=True)
+		except Exception as e:
+			print(f"Error Creating directory {albumDIR}: {e}")
+			return False
+		
+			#download the files
+		successfullDownloads = 0
+		for songNum, songLink, in enumerate(flacLinks, 1):
+			filename = self.cleanFileName(link['filename'])
+			filepath = albumDIR / filename
+
+			print(f"\n[{songNum}/{len(flacLinks)}] Downloading: {filename}")
+
+			#skip file if already there
+			if filepath.exists():
+				print(f"	File already exists, skipping")
+				successfullDownloads += 1
+				continue
+
+			#download the file
+			if self.downloadFile(link['uri'], filepath):
+				successfullDownloads += 1
+				continue
+
+			# rate limit to avoid server isssues
+			if songNum < len(flacLinks):
+				time.sleep(1)
+			
+
+		print(f"\n\nDownlaod complete: {successfullDownloads}/{len(flacLinks)} files downloaded")
+		return successfullDownloads == len(flacLinks)
