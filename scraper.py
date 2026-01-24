@@ -158,3 +158,23 @@ class Scraper:
 
 		print(f"\n\nDownlaod complete: {successfullDownloads}/{len(flacLinks)} files downloaded")
 		return successfullDownloads == len(flacLinks)
+
+	
+def main():
+	if len(sys.argv) < 2:
+		print("Usage: ./scraper.py <album_URI> [output_directory]")
+		sys.exit(1)
+	
+	albumURI = sys.argv[1]
+		#Unix user downloads folder is the default
+	outputDIR = sys.argv[2] if len(sys.argv) > 2 else "~/Downloads"
+
+	scraper = Scraper(albumURI, outputDIR)
+	success = scraper.scrapeAndDownload()
+
+	sys.exit(0 if success else 1)
+
+
+	#run only if not imported
+if __name__ == "__main__":
+	main()
