@@ -27,7 +27,7 @@ class Scraper:
 	def getAlbumInfo(self):
 		try:
 			response = self.session.get(self.albumURI, timeout = 10)
-			response.raiseForStatus()
+			response.raise_for_status()
 		except requests.RequestException as exception:
 			print(f"Error fetching album: {exception}")
 			return None
