@@ -85,7 +85,7 @@ class Scraper:
 				with open(filepath, 'wb') as songFile:
 					for chunk in response.iter_content(chunkSize=8192):
 						if chunk:
-							file.write(chunk)
+							songFile.write(chunk)
 							downloaded += len(chunk)
 
 							#print percent complete
@@ -135,7 +135,7 @@ class Scraper:
 			#download the files
 		successfullDownloads = 0
 		for songNum, songLink, in enumerate(flacLinks, 1):
-			filename = self.cleanFileName(link['filename'])
+			filename = self.cleanFileName(songLink['filename'])
 			filepath = albumDIR / filename
 
 			print(f"\n[{songNum}/{len(flacLinks)}] Downloading: {filename}")
@@ -147,7 +147,7 @@ class Scraper:
 				continue
 
 			#download the file
-			if self.downloadFile(link['uri'], filepath):
+			if self.downloadFile(songLink['uri'], filepath):
 				successfullDownloads += 1
 				continue
 
