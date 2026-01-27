@@ -47,26 +47,61 @@ class Scraper:
 			'soup': soup,
 			'html': response.text
 		}
+
+
+		#Khinsider does not have downloads directly on
+		#the album page, it has links to "song pages"
+		#these pages have the downloads, this function grabs
+		#the song pages.
+	def extractSongPageLinks(self, soup):
+		pageLinks = []
+
+			#songs are in tables with the id "songlist"
+			#return the empty list if the table is not found
+		songTable = soup.find('table', id='songlist')
+		if not songTable:
+			return songTable
+
+		for row in songTable.find_all('tr')[1:]:
+			link = row.find('a')
+				#If the anchor tag and the reference for it exist then proceed
+			if link and link.get('href'):
+				href = link.get('href')
+				fullURI = urljoin(self.albumURI, href)
+					#khinsider often has multiple links in the table to the
+					#same page, skip duplicates
+				if fullURI not in pageLinks:
+					pageLinks.append(fullURI)
+
+		return pageLinks
 	
-	def extractDownloadLinks(self, htmlContent):
-		soup = BeautifulSoup(htmlContent, 'html.parser')
-
-		flacLinks = []
-
-		#look for download links in all formats
+	def extractDownloadLink(self, songPageURI):
+		try: 
+			response = self.session.get(songPageURI, timeout=10)
+			response.raise_for_status()
+		except requests.RequestException as e:
+			print(f"Error fetching song page: {e}")
+			return None
+		
+		soup = BeautifulSoup(response.content, 'html.parser')
 		for link in soup.find_all('a'):
 			href = link.get('href', '')
-			text = link.get_text(strip=True).lower()
+			text = link.get_text(strip=True)
 
-			#grab flac links
-			if 'flac' in text.lower() or href.endswith('.flac'):
-				if href.startswith('http'):
-					flacLinks.append({
-						'uri': href,
-						'filename': href.split('/')[-1]
-					})
-		
-		return flacLinks
+			if 'flac' in text.lower() and href.startswith('http'):
+				filename = href.split('/')[-1]
+				if not filename.endswith('.flac'):
+					# Try to get a better filename from the page
+					titleTag = soup.find('h2')
+					if titleTag:
+						filename = self.cleanFileName(titleTag.get_text(strip=True)) + '.flac'
+			
+			return {
+				'uri': href,
+				'filename': filename
+			}
+		return None
+
 
 
 	def downloadFile(self, songURI, filepath, timeout=30, maxRetries=3):
@@ -116,11 +151,30 @@ class Scraper:
 
 		print(f"Album: {albumInfo['title']}")
 
-			#get the song links
-		flacLinks = self.extractDownloadLinks(albumInfo['html'])
-		if not flacLinks:
-			print("No FLAC Downloads were found")
+			#get the links to the song pages
+		songPageLinks = self.extractSongPageLinks(albumInfo['soup'])
+		if not songPageLinks:
+			print("No song pages were found")
 			return False
+		print(f"Found {len(songPageLinks)} songs")
+
+			#get actual download links
+		flacLinks = []
+		for songNum, songPageURI in enumerate(songPageLinks, 1):
+			print(f"Checking song {songNum}/{len(songPageLinks)}...", end='\r')
+			flacLink = self.extractDownloadLinks(songPageURI)
+			if flacLink:
+				flacLinks.append(flacLink)
+			time.sleep(0.5)  # Be respectful to the server
+
+		print(f"\nFound {len(flacLinks)} FLAC files")
+    
+		if not flacLinks:
+			print("No FLAC downloads were found")
+			return False
+
+
+
 		
 		print(f"Found {len(flacLinks)} FLAC files")
 
