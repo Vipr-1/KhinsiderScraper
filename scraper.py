@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python3
 
 import os
 import re
@@ -6,7 +6,7 @@ import sys
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, unquote
 import time
 
 
@@ -89,17 +89,18 @@ class Scraper:
 			text = link.get_text(strip=True)
 
 			if 'flac' in text.lower() and href.startswith('http'):
-				filename = href.split('/')[-1]
+				#unquote replaces codes like %20 (spaces in URIs) with their normal counterparts
+				filename = unquote(href.split('/')[-1])
 				if not filename.endswith('.flac'):
 					# Try to get a better filename from the page
 					titleTag = soup.find('h2')
 					if titleTag:
 						filename = self.cleanFileName(titleTag.get_text(strip=True)) + '.flac'
 			
-			return {
-				'uri': href,
-				'filename': filename
-			}
+				return {
+					'uri': href,
+					'filename': filename
+				}
 		return None
 
 
@@ -109,7 +110,7 @@ class Scraper:
 		for attempt in range(maxRetries):
 			try:
 				response = self.session.get(songURI, timeout=timeout, stream=True)
-				response.raiseForStatus()
+				response.raise_for_status()
 
 				#grab file size
 				fileSize = int(response.headers.get('content-length', 0))
@@ -118,7 +119,7 @@ class Scraper:
 
 				downloaded = 0
 				with open(filepath, 'wb') as songFile:
-					for chunk in response.iter_content(chunkSize=8192):
+					for chunk in response.iter_content(chunk_size=8192):
 						if chunk:
 							songFile.write(chunk)
 							downloaded += len(chunk)
@@ -162,7 +163,7 @@ class Scraper:
 		flacLinks = []
 		for songNum, songPageURI in enumerate(songPageLinks, 1):
 			print(f"Checking song {songNum}/{len(songPageLinks)}...", end='\r')
-			flacLink = self.extractDownloadLinks(songPageURI)
+			flacLink = self.extractDownloadLink(songPageURI)
 			if flacLink:
 				flacLinks.append(flacLink)
 			time.sleep(0.5)  # Be respectful to the server
@@ -222,6 +223,7 @@ def main():
 	albumURI = sys.argv[1]
 		#Unix user downloads folder is the default
 	outputDIR = sys.argv[2] if len(sys.argv) > 2 else "~/Downloads"
+	outputDIR = Path(outputDIR).expanduser()
 
 	scraper = Scraper(albumURI, outputDIR)
 	success = scraper.scrapeAndDownload()
