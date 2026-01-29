@@ -12,9 +12,10 @@ import time
 
 # class that contains data and methods for scraping
 class Scraper:
-	def __init__(self, albumURI, outputDIR):
+	def __init__(self, albumURI, outputDIR, audioFormat):
 		self.albumURI = albumURI
 		self.outputDIR = Path(outputDIR)
+		self.audioFormat = audioFormat
 		self.session = requests.Session() #set up information for the 'web agent'
 		self.session.headers.update({ #define the scraper's user agent
 			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Gecko/20100101 Firefox/146.0'
@@ -88,14 +89,14 @@ class Scraper:
 			href = link.get('href', '')
 			text = link.get_text(strip=True)
 
-			if 'flac' in text.lower() and href.startswith('http'):
+			if self.audioFormat in text.lower() and href.startswith('http'):
 				#unquote replaces codes like %20 (spaces in URIs) with their normal counterparts
 				filename = unquote(href.split('/')[-1])
-				if not filename.endswith('.flac'):
+				if not filename.endswith('.' + self.audioFormat):
 					# Try to get a better filename from the page
 					titleTag = soup.find('h2')
 					if titleTag:
-						filename = self.cleanFileName(titleTag.get_text(strip=True)) + '.flac'
+						filename = self.cleanFileName(titleTag.get_text(strip=True)) + '.' + self.audioFormat
 			
 				return {
 					'uri': href,
@@ -160,24 +161,24 @@ class Scraper:
 		print(f"Found {len(songPageLinks)} songs")
 
 			#get actual download links
-		flacLinks = []
+		musicLinks = []
 		for songNum, songPageURI in enumerate(songPageLinks, 1):
 			print(f"Checking song {songNum}/{len(songPageLinks)}...", end='\r')
-			flacLink = self.extractDownloadLink(songPageURI)
-			if flacLink:
-				flacLinks.append(flacLink)
+			musicLink = self.extractDownloadLink(songPageURI)
+			if musicLink:
+				musicLinks.append(musicLink)
 			time.sleep(0.5)  # Be respectful to the server
 
-		print(f"\nFound {len(flacLinks)} FLAC files")
+		print(f"\nFound {len(musicLinks)} {self.audioFormat} files")
     
-		if not flacLinks:
-			print("No FLAC downloads were found")
+		if not musicLinks:
+			print(f"No {self.audioFormat} downloads were found")
 			return False
 
 
 
 		
-		print(f"Found {len(flacLinks)} FLAC files")
+		print(f"Found {len(musicLinks)} {self.audioFormat} files")
 
 			#make the album directory
 		albumDIR = self.outputDIR / albumInfo['title']
@@ -189,11 +190,11 @@ class Scraper:
 		
 			#download the files
 		successfullDownloads = 0
-		for songNum, songLink, in enumerate(flacLinks, 1):
+		for songNum, songLink, in enumerate(musicLinks, 1):
 			filename = self.cleanFileName(songLink['filename'])
 			filepath = albumDIR / filename
 
-			print(f"\n[{songNum}/{len(flacLinks)}] Downloading: {filename}")
+			print(f"\n[{songNum}/{len(musicLinks)}] Downloading: {filename}")
 
 			#skip file if already there
 			if filepath.exists():
@@ -207,25 +208,27 @@ class Scraper:
 				continue
 
 			# rate limit to avoid server isssues
-			if songNum < len(flacLinks):
+			if songNum < len(musicLinks):
 				time.sleep(1)
 			
 
-		print(f"\n\nDownlaod complete: {successfullDownloads}/{len(flacLinks)} files downloaded")
-		return successfullDownloads == len(flacLinks)
+		print(f"\n\nDownlaod complete: {successfullDownloads}/{len(musicLinks)} files downloaded")
+		return successfullDownloads == len(musicLinks)
 
 	
 def main():
 	if len(sys.argv) < 2:
-		print("Usage: ./scraper.py <album_URI> [output_directory]")
+		print("Usage: ./scraper.py <album_URI> [audio_format] [output_directory]")
 		sys.exit(1)
 	
 	albumURI = sys.argv[1]
+		#use flac as the default file format
+	audioFormat = sys.argv[2] if len(sys.argv) > 2 else "flac"
 		#Unix user downloads folder is the default
-	outputDIR = sys.argv[2] if len(sys.argv) > 2 else "~/Downloads"
+	outputDIR = sys.argv[3] if len(sys.argv) > 3 else "~/Downloads"
 	outputDIR = Path(outputDIR).expanduser()
 
-	scraper = Scraper(albumURI, outputDIR)
+	scraper = Scraper(albumURI, outputDIR, audioFormat)
 	success = scraper.scrapeAndDownload()
 
 	sys.exit(0 if success else 1)
