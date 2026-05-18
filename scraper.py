@@ -3,6 +3,7 @@
 import os
 import re
 import sys
+import requests
 import cloudscraper
 from bs4 import BeautifulSoup
 from pathlib import Path
@@ -16,7 +17,7 @@ class Scraper:
 		self.albumURI = albumURI
 		self.outputDIR = Path(outputDIR)
 		self.audioFormat = audioFormat
-		self.session = cloudscraper.create_scraper #set up information for the 'web agent'
+		self.session = cloudscraper.create_scraper() #set up information for the 'web agent'
 		self.session.headers.update({ #define the scraper's user agent
 			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 		})
